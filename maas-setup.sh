@@ -6,6 +6,10 @@
 # You need a bare metal machine is because nesting multiple layers of VMs will not work and/or have performance problems.
 # Note: this tutorial has not been tested on versions prior to 20.04.
 
+# clone the git repository
+cd ~
+git clone https://github.com/antongisli/maas-baremetal-k8s-tutorial.git
+
 ###
 ### Set up NAT for the local network so VM's/Bare Metal can see the Internet
 ###
@@ -52,9 +56,6 @@ sudo snap install jq
 sudo snap install maas
 sudo snap install maas-test-db
 
-# clone the git repository
-cd ~
-git clone https://github.com/antongisli/maas-baremetal-k8s-tutorial.git
 
 # Initialise MAAS
 sudo maas init region+rack --database-uri maas-test-db:/// --maas-url http://${IP_ADDRESS}:5240/MAAS
@@ -75,6 +76,16 @@ maas admin subnet update $SUBNET gateway_ip=10.10.10.1
 maas admin ipranges create type=dynamic start_ip=10.10.10.200 end_ip=10.10.10.254
 maas admin vlan update $FABRIC_ID $VLAN_TAG dhcp_on=True primary_rack=$PRIMARY_RACK
 maas admin maas set-config name=upstream_dns value=8.8.8.8
+
+
+#
+# GO TO WEB INTERFACE.
+# DO INITIAL SETUP.
+# SELECT KVM->LXD from menu on left
+# CLICK "ADD LXD HOST" in upper right hand corner.
+# MANUALLY INSTALL THE CERTIFICATE PRESENTED TO YOU USING THE COMMAND IT TELLS YOU TO USE.
+#
+
 # Add LXD as a VM host for MAAS and capture the VM_HOST_ID
 export VM_HOST_ID=$(maas admin vm-hosts create  password=password  type=lxd power_address=https://${IP_ADDRESS}:8443 \
  project=maas | jq '.id')
@@ -96,6 +107,9 @@ export JUJU_SYSID=$(maas admin machines read | jq  '.[]
 | select(."hostname"=="juju-controller") 
 | .["system_id"]' | tr -d '"')
 maas admin tag update-nodes "juju-controller" add=$JUJU_SYSID
+
+
+### Enlist bare metal nodes into MAAS via GUI. 
 
 ## Create 3 "bare metal" machines and tag them with "metal"
 for ID in 1 2 3
