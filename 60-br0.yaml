@@ -1,0 +1,10 @@
+network: 
+  version: 2
+  bridges:
+    br0:
+      addresses: 
+        - LOCAL_IP/24
+      interfaces:
+        - eno1
+      parameters: 
+        stp: true
