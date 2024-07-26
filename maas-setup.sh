@@ -6,17 +6,9 @@
 # You need a bare metal machine is because nesting multiple layers of VMs will not work and/or have performance problems.
 # Note: this tutorial has not been tested on versions prior to 20.04.
 
-# lxd / maas issue. either upgrade lxd or maas to 3.1
-sudo snap install --channel=latest/stable lxd
-sudo snap refresh --channel=latest/stable lxd
-sudo snap install jq
-sudo snap install maas
-sudo snap install maas-test-db
-
-# clone the git repository
-cd ~
-git clone https://github.com/antongisli/maas-baremetal-k8s-tutorial.git
-
+###
+### Set up NAT for the local network so VM's/Bare Metal can see the Internet
+###
 # get local interface name (this assumes a single default route is present)
 export INTERFACE=$(ip route | grep default | cut -d ' ' -f 5)
 export IP_ADDRESS=$(ip -4 addr show dev $INTERFACE | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
@@ -28,12 +20,42 @@ sudo iptables -t nat -A POSTROUTING -o $INTERFACE -j SNAT --to $IP_ADDRESS
 echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo debconf-set-selections
 echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections
 sudo apt-get install iptables-persistent -y
+
+###
+### Install/configure LXD
+###
+sudo snap install --channel=latest/stable lxd
+sudo snap refresh --channel=latest/stable lxd
+
 # LXD init
 sudo cat maas-baremetal-k8s-tutorial/lxd.conf | lxd init --preseed
-# verify LXD network config
-lxc network show lxdbr0
 # Wait for LXD to be ready
 lxd waitready
+# verify LXD network config
+lxc network list
+lxc network show br0
+lxc profile show default
+#test by making a container
+lxc launch ubuntu:22.04 test-container
+#test by making a VM
+lxc launch ubuntu:22.04 test-vm --vm 
+# visit your VM
+lxc exec test-vm -- /bin/bash
+#clean up
+lxc delete test-container
+lxc delete test-vm
+
+
+
+# lxd / maas issue. either upgrade lxd or maas to 3.1
+sudo snap install jq
+sudo snap install maas
+sudo snap install maas-test-db
+
+# clone the git repository
+cd ~
+git clone https://github.com/antongisli/maas-baremetal-k8s-tutorial.git
+
 # Initialise MAAS
 sudo maas init region+rack --database-uri maas-test-db:/// --maas-url http://${IP_ADDRESS}:5240/MAAS
 # Sleeping for awhile to let MAAS do what it needs to do.
