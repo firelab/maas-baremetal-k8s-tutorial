@@ -156,16 +156,38 @@ juju machines
 
 ### Ceph
 
+# create a VM to run Ceph overhead on MAAS server
+maas admin vm-host compose 1 cores=8 memory=16384 architecture="amd64/generic"  storage="main:16(pool1)" hostname="ceph-server"
+maas admin tags create name=ceph comment='This tag should be applied to the VM that serve as a ceph OSD+Mon+MDS'
+export CEPH_SYSID=$(maas admin machines read | jq  '.[] 
+| select(."hostname"=="ceph-server") 
+| .["system_id"]' | tr -d '"')
+maas admin tag update-nodes "ceph" add=$CEPH_SYSID
+lxc config device add "ceph-server" sdb disk source=/dev/sdb
+
+# add the above machine to juju
+juju add-machine --constraints "tags=ceph"
+
+
 # deploy ceph-mon to LXD VMs inside our metal machines
 juju deploy -n 3 ceph-mon --to lxd:0,lxd:1,lxd:2
 # deploy ceph-osd directly to the machines
-juju deploy --config maas-baremetal-k8s-tutorial/ceph-osd.yaml cs:ceph-osd -n 3 --to 0,1,2
+juju deploy --config maas-baremetal-k8s-tutorial/ceph-osd.yaml ceph-osd -n 3 --to 0,1,2
 # relate ceph-mon and ceph-osd
-juju add-relation ceph-mon ceph-osd
+juju integrate ceph-osd:mon ceph-mon:osd
 
 # watch the fun (with a another coffee). 
 watch -c juju status --color
 # Wait for Ceph to settle before proceeding
+
+# If the deployment hangs up because one or more of the disks was a raid member: 
+### Wipe disk which formerly belonged to a RAID.
+juju ssh 3
+sudo dd if=/dev/zero of=/dev/sdb bs=512 count=1024
+DEVSZ=$(sudo blockdev --getsz /dev/sdb)
+SEEK=$(python3 -c "print($DEVSZ - 1024)")
+sudo dd if=/dev/zero of=/dev/sdb bs=512 seek=$SEEK count=1024
+### END of wiping disk from a former RAID
 
 ### Kubernetes
 
