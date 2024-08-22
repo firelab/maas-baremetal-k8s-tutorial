@@ -127,12 +127,14 @@ done
 cd ~
 sudo snap install juju --classic
 sed -i "s/IP_ADDRESS/$IP_ADDRESS/" maas-baremetal-k8s-tutorial/maas-cloud.yaml
-juju add-cloud --local maas-cloud maas-baremetal-k8s-tutorial/maas-cloud.yaml
+juju add-cloud maas-cloud maas-baremetal-k8s-tutorial/maas-cloud.yaml
 juju add-credential maas-cloud
 juju clouds --local
 juju credentials
 # Bootstrap the maas-cloud - get a coffee
 juju bootstrap maas-cloud --bootstrap-constraints "tags=juju-controller mem=2G"
+
+juju add-model default
 
 # fire up the juju gui to view the fun
 # if it's a remote machine, you can use an SSH tunnel to get access to it:
