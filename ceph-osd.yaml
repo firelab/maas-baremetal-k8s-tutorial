@@ -1,2 +1,2 @@
 ceph-osd:
-  osd-devices: /dev/sda
+  osd-devices: /dev/sdb
