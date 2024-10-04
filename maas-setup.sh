@@ -155,6 +155,15 @@ done
 # take a look at machines list again, should see 3 machines
 juju machines
 
+#
+## NOTE: The above added all the machines to the "default model" which is sort of 
+## fine for an example, but we're going to create a model specific to kubernetes.
+## Since you can't the same machine to two models at once, let's free them up. 
+
+for ID in 1 2 3 
+do
+    juju remove-machine --force $ID
+done
 
 ### Ceph
 
@@ -167,8 +176,15 @@ export CEPH_SYSID=$(maas admin machines read | jq  '.[]
 maas admin tag update-nodes "ceph" add=$CEPH_SYSID
 lxc config device add "ceph-server" sdb disk source=/dev/sdb
 
-# add the above machine to juju
-juju add-machine --constraints "tags=ceph"
+# create a model to contain machines and apps for ceph+k8s.
+juju add-model ceph-k8s
+
+# add the above machines to juju using their hostnames to control the order in
+# in which they are added. 
+#juju add-machine --constraints "tags=ceph"
+juju add-machine ceph-server
+juju add-machine node-b 
+juju add-machine node-d 
 
 
 # deploy ceph-mon to LXD VMs inside our metal machines
@@ -190,6 +206,10 @@ DEVSZ=$(sudo blockdev --getsz /dev/sdb)
 SEEK=$(python3 -c "print($DEVSZ - 1024)")
 sudo dd if=/dev/zero of=/dev/sdb bs=512 seek=$SEEK count=1024
 ### END of wiping disk from a former RAID
+#
+
+juju ssh ceph-mon/0 -- sudo ceph status
+juju run ceph-mon/0 list-pools
 
 ### Kubernetes
 
